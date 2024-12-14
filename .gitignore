@@ -1,0 +1,5 @@
+__pycache__
+.DS_Store
+test.py
+encrypt.py
+CRYPTO_KEY.txt
