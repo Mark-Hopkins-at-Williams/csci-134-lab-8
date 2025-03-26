@@ -1,227 +1,137 @@
-from pgl import GWindow, GCompound, GOval, GRect, GLine, GLabel
-from lab8 import Dispatcher, Van, Location, Warehouse, Vehicle
-from random import randint
+from graphics import Window
+from graphics import Rectangle, Circle, Textbox
+from addresses import Address
+from random import choice, uniform
+from tasks import Delivery
+from vehicles import Car, Vehicle, Van, Helicopter
 
-GWINDOW_WIDTH = 500
-GWINDOW_HEIGHT = 500
-
-CAR_RADIUS = 10
-HOUSE_RADIUS = 5
-CUSTOMER_RADIUS = 8
-
-TIME_STEP = 500
-
-def draw_van(center_x, center_y, radius, van):
-    result = GCompound()
-    oval = GOval(center_x - radius, center_y - radius, radius*2, radius*2)
-    result.add(oval)
-    oval.setFilled(True)
-    oval.setColor("red")
-    try:
-        if van.is_available():
-            oval.setColor("green")
-        else:
-            oval.setColor("red")
-        label = GLabel(str(van.get_cargo()))
-        result.add(label, center_x - label.getWidth() // 2, center_y + label.getAscent() // 2 - 2)
-    except:
-        pass
-    return result
+CONFIG = {'block width': 50, 
+          'road width': 25,
+          'car width': 10,
+          'van width': 15,
+          'helicopter width': 15,
+          'customer width': 21,
+          'num rows': 8, 
+          'num cols': 10,
+          'time step': 4}
 
 
-def simple_square(center_x, center_y, radius):
-    return GRect(center_x - radius, center_y - radius, radius*2, radius*2)
+def draw_city_block(config):
+    return Rectangle(config['block width'], 
+                     config['block width'], 
+                     fill_color="darkgray", 
+                     outline_color="black")
+     
 
-def double_ring(center_x, center_y, radius, scheduled):
-    result = GCompound()
-    outer = GRect(center_x - radius, center_y - radius, radius*2, radius*2)
-    inner = GOval(center_x - radius//2, center_y - radius//2, radius, radius)
-    outer.setColor("blue")
-    inner.setColor("blue")
-    result.add(outer)
-    result.add(inner)
-    if scheduled:
-        inner.setFilled(True)
-    return result
+def draw_vehicle(config, vehicle):
+    if type(vehicle) == Car:
+        return Rectangle(config['car width'],
+                         config['car width'],
+                         fill_color='gray' if vehicle.is_empty() else "blue",
+                         outline_color='red' if vehicle.is_busy() else "green")
+    elif type(vehicle) == Van:
+        return Textbox(config['van width'],
+                       config['van width'],
+                       fill_color='gray' if vehicle.is_empty() else "blue",
+                       text_color='white',
+                       font_name='Helvetica',
+                       msg = "V")
+    elif type(vehicle) == Helicopter:
+        return Circle(config['helicopter width'],
+                      color='gray' if vehicle.is_empty() else "darkorange")
+    else:
+        return Circle(config['helicopter width'],
+                      color='lightgray')
 
+def draw_order(config, assigned):
+    return Textbox(config['customer width'],
+                   config['customer width'],
+                   fill_color='green' if assigned else "yellow",
+                   text_color='black',
+                   font_name='Helvetica',
+                   msg = "$")
 
-class Grid:
-
-    def __init__(self, num_rows):
-        self.num_rows = num_rows
-        self.vans = []
-        self.warehouses = []
-        self.customers = []
-
-    def add_van(self, van):
-        self.vans += [van]
-
-    def add_warehouse(self, warehouse):
-        self.warehouses += [warehouse]
-
-    def add_customer(self, row, col, scheduled=False):
-        self.customers += [(row, col, scheduled)]
-
-    def get_coords(self, row, col):
-        x = -200 + (400 / self.num_rows) * row
-        y = 200 - (400 / self.num_rows) * col
-        return (x, y)
-
-    def gcompound(self):
-        result = GCompound()
-        for i in range(self.num_rows+1):
-            offset = (i - (self.num_rows / 2)) * (400 / self.num_rows)
-            x_axis = GLine(-200, offset, 200, offset)
-            result.add(x_axis)
-            y_axis = GLine(offset, -200, offset, 200)
-            result.add(y_axis)
-        for van in self.vans:
-            (x, y) = self.get_coords(van.get_location().x, van.get_location().y)
-            car = draw_van(x, y, CAR_RADIUS, van)
-            result.add(car)
-        for wh in self.warehouses:
-            (x, y) = self.get_coords(wh.get_location().x, wh.get_location().y)
-            house = simple_square(x, y, HOUSE_RADIUS)
-            house.setFilled(True)
-            house.setColor("black")
-            result.add(house)
-        for (row, col, scheduled) in self.customers:
-            (x, y) = self.get_coords(row, col)
-            house = double_ring(x, y, CUSTOMER_RADIUS, scheduled)
-            result.add(house)
-        return result
+def draw_warehouse(config):
+    return Textbox(config['customer width'],
+                   config['customer width'],
+                   fill_color='blue',
+                   text_color='white',
+                   font_name='Helvetica',
+                   msg = "W")
 
 
+class Manhattan:
 
+    def __init__(self, dispatcher, config=CONFIG):
+        self.config = config
+        self.dispatcher = dispatcher
+        num_rows = config['num rows']
+        num_cols = config['num cols']
+        self.road_width = config['road width']
+        block_width = config['block width']
+        self.board_height = (num_rows * block_width) + (num_rows + 1) * self.road_width
+        self.board_width = (num_cols * block_width) + (num_cols + 1) * self.road_width
+        self.board = Window(self.board_width, self.board_height, "MANHATTAN", "white")    
+        self.draw()
+        
+    def map_coords(self, x, y):
+        new_x = (self.road_width // 2) + (x / 1000) * (self.board_width - self.road_width)
+        new_y = (self.road_width // 2) + ((800 - y) / 800) * (self.board_height - self.road_width)
+        return new_x, new_y
 
-def create_grid(dispatcher):
-    grid = Grid(10)
-    for warehouse in dispatcher.warehouses:
-        grid.add_warehouse(warehouse)
-    for van in dispatcher.fleet:
-        grid.add_van(van)
-        try:
-            if van.get_current_task() == "deliver" and van.get_destination() != None:
-                destination = van.get_destination()
-                grid.add_customer(destination.x, destination.y, True)
-        except:
-            pass
-    for destination in dispatcher.unfilled:
-        grid.add_customer(destination.x, destination.y)
-    return grid
-
-class EasyDispatcher:
-
-    def __init__(self, warehouses=[]):
-        self.warehouses = warehouses
-        self.fleet = []
-        self.unfilled = []
-
-    def hire(self, vehicle):
-        self.fleet += [vehicle]
+    def draw(self):
+        self.board.clear()
+        num_rows = self.config['num rows']
+        num_cols = self.config['num cols']
+        road_width = self.config['road width']
+        block_width = self.config['block width']
+        customer_width = self.config['customer width']
+        for row in range(num_rows):
+            for col in range(num_cols):
+                brick = draw_city_block(self.config)
+                self.board.paste(brick,
+                                 road_width + col * (road_width + block_width),
+                                 road_width + row * (road_width + block_width))
+        for vehicle in self.dispatcher.fleet:
+            x, y = self.map_coords(vehicle.curr_x, vehicle.curr_y)
+            graphic = draw_vehicle(self.config, vehicle)
+            if type(vehicle) == Van:
+                vehicle_width = self.config['van width']
+            elif type(vehicle) == Vehicle:
+                vehicle_width = self.config['car width']
+            else:
+                vehicle_width = self.config['helicopter width']
+            self.board.paste(graphic, x-vehicle_width//2, y-vehicle_width//2)
+        offsets = {'NW': (32, -32), 'NE': (-32, -32),
+                   'SW': (32, 32), 'SE': (-32, 32)}
+        for warehouse in self.dispatcher.warehouses:
+            addr_x, addr_y  = warehouse.get_coordinates()
+            x, y = self.map_coords(addr_x + offsets[warehouse.corner][0], addr_y + offsets[warehouse.corner][1])
+            graphic = draw_warehouse(self.config)
+            self.board.paste(graphic, x-customer_width//2, y-customer_width//2)            
+        for order in self.dispatcher.get_unfulfilled_orders():
+            addr_x, addr_y  = order.address.get_coordinates()
+            x, y = self.map_coords(addr_x + offsets[order.address.corner][0], addr_y + offsets[order.address.corner][1])
+            graphic = draw_order(self.config, order.already_assigned())
+            self.board.paste(graphic, x-customer_width//2, y-customer_width//2)            
 
     def advance_time(self):
-        for van in self.fleet:
-            van.advance_time()
+        self.dispatcher.dispatch()
+        if uniform(0, 50) < 1 and self.live:
+            random_block = choice([str(i) for i in range(8)]) + choice([str(i) for i in range(10)])
+            random_corner = choice(['NW', 'NE', 'SW', 'SE'])
+            self.dispatcher.take_order(Delivery(Address(random_block, random_corner)))
+      
 
-
-
-
-
-
-
-def start_scenario1():
-    def step():
-        gw.clear()
-        grid = create_grid(dispatcher)
-        gw.add(grid.gcompound(), GWINDOW_WIDTH // 2, GWINDOW_HEIGHT // 2)
-        car.advance_time()
-
-    gw = GWindow(GWINDOW_WIDTH, GWINDOW_HEIGHT)
-    car = Vehicle(Location(1, 4))
-    car.set_destination(Location(8, 10))
-    dispatcher = EasyDispatcher()
-    dispatcher.hire(car)
-    timer = gw.setInterval(step, TIME_STEP)
-    timer.setRepeats(True)
-
-
-def start_scenario2():
-    def step():
-        gw.clear()
-        grid = create_grid(dispatcher)
-        gw.add(grid.gcompound(), GWINDOW_WIDTH // 2, GWINDOW_HEIGHT // 2)
-        van.advance_time()
-        van.deliver()
-
-    gw = GWindow(GWINDOW_WIDTH, GWINDOW_HEIGHT)
-    van = Van(3)
-    van.schedule(Location(5, 3), "deliver")
-    dispatcher = EasyDispatcher()
-    dispatcher.hire(van)
-    timer = gw.setInterval(step, TIME_STEP)
-    timer.setRepeats(True)
-
-
-def start_scenario3():
-    def step():
-        gw.clear()
-        grid = create_grid(dispatcher)
-        gw.add(grid.gcompound(), GWINDOW_WIDTH // 2, GWINDOW_HEIGHT // 2)
-        van.advance_time()
-        if warehouse.refill(van):
-            van.set_destination(Location(10, 10))
-
-    gw = GWindow(GWINDOW_WIDTH, GWINDOW_HEIGHT)
-    van = Van(5)
-    van.dump_cargo()
-    van.schedule(Location(6, 4), "refill")
-    warehouse = Warehouse(Location(6, 4))
-    dispatcher = EasyDispatcher([warehouse])
-    dispatcher.hire(van)
-    timer = gw.setInterval(step, TIME_STEP)
-    timer.setRepeats(True)
-
-
-def start_final_scenario():
-    def step():
-        gw.clear()
-        grid = create_grid(dispatcher)
-        gw.add(grid.gcompound(), GWINDOW_WIDTH // 2, GWINDOW_HEIGHT // 2)
-        dispatcher.advance_time()
-        if randint(1,3) == 1:
-            dispatcher.take_order(Location(randint(0,10), randint(0,10)))
-
-    gw = GWindow(GWINDOW_WIDTH, GWINDOW_HEIGHT)
-    dispatcher = Dispatcher([Warehouse(Location(5, 5)), Warehouse(Location(2, 9))])
-    dispatcher.hire(Van(3))
-    dispatcher.hire(Van(3))
-    dispatcher.hire(Van(3))
-    dispatcher.take_order(Location(9, 7))
-    timer = gw.setInterval(step, TIME_STEP)
-    timer.setRepeats(True)
-
-
-
-
-if __name__ == '__main__':
-    import sys
-    failed = False
-    if len(sys.argv) < 1:
-        failed = True
-    elif sys.argv[1] == "vehicles":
-        start_scenario1()
-    elif sys.argv[1] == "vans":
-        start_scenario2()
-    elif sys.argv[1] == "warehouses":
-        start_scenario3()
-    elif sys.argv[1] == "dispatcher":
-        start_final_scenario()
-    else:
-        failed = True
-    if failed:
-        print("Supported scenarios: vehicles, vans, warehouses, dispatcher")
-
-
+    def start(self, live=False):
+        self.live = live
+        self.board.call_every_k_milliseconds(
+            self.config['time step'],
+            self.advance_time,
+        )            
+        quit_now = False
+        while not quit_now:
+            self.draw()
+            quit_now = self.board.refresh()
 
 
