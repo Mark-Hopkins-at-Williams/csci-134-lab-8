@@ -8,12 +8,15 @@ class Vehicle:
     def get_coordinates(self):
         """Replace this with your code for Question Two ("Vehicles")."""
 
-    def get_eta(self, addr):
-        """Replace this with your code for Question Two ("Vehicles")."""
-    
     def send_to(self, addr):
         """Replace this with your code for Question Two ("Vehicles")."""
 
+    def move(self):
+        """Replace this with your code for Question Two ("Vehicles")."""
+
+    def get_eta(self, addr):
+        """Replace this with your code for Question Two ("Vehicles")."""
+    
     def is_busy(self):
         """Replace this with your code for Question Two ("Vehicles")."""
 
@@ -26,8 +29,6 @@ class Vehicle:
     def deliver(self):
         """Replace this with your code for Question Two ("Vehicles")."""
         
-    def move(self):
-        """Replace this with your code for Question Two ("Vehicles")."""
                
 
 class Car(Vehicle):

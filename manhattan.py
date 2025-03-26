@@ -93,7 +93,8 @@ class Manhattan:
                                  road_width + col * (road_width + block_width),
                                  road_width + row * (road_width + block_width))
         for vehicle in self.dispatcher.fleet:
-            x, y = self.map_coords(vehicle.curr_x, vehicle.curr_y)
+            curr_x, curr_y = vehicle.get_coordinates()
+            x, y = self.map_coords(curr_x, curr_y)
             graphic = draw_vehicle(self.config, vehicle)
             if type(vehicle) == Van:
                 vehicle_width = self.config['van width']

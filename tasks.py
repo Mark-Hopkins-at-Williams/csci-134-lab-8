@@ -1,4 +1,5 @@
 class Task:
+    """This class is written for you. Do not modify it!"""
 
     def __init__(self, address):
         self.address = address
