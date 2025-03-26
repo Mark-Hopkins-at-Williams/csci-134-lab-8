@@ -11,6 +11,6 @@ This repository contains starter files for the code you need to write for Lab 8:
 
 It also contains code that you should understand (and probably use) but not modify. This code can be found in `dispatcher.py` and `oscar.py`.
 
-It also contains visualization code that you need not look at and should not modify. This code can found in `graphics.py` and `manhattan py`.
+It also contains visualization code that you need not look at and should not modify. This code can found in `graphics.py` and `manhattan.py`.
 
 Ignore (but do not delete!!!) any other files in this repository.
